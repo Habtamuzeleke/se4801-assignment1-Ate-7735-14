@@ -4,7 +4,9 @@ import com.shopwave.shopwave_starter.dto.CreateProductRequest;
 import com.shopwave.shopwave_starter.dto.ProductDTO;
 import com.shopwave.shopwave_starter.exception.ProductNotFoundException;
 import com.shopwave.shopwave_starter.mapper.ProductMapper;
+import com.shopwave.shopwave_starter.model.Category;
 import com.shopwave.shopwave_starter.model.Product;
+import com.shopwave.shopwave_starter.repository.CategoryRepository;
 import com.shopwave.shopwave_starter.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,20 +22,30 @@ import java.util.stream.Collectors;
 @Transactional
 @RequiredArgsConstructor
 public class ProductService {
-
+    private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
 
     public ProductDTO createProduct(CreateProductRequest request) {
-        Product product = Product.builder()
-                .name(request.getName())
-                .description(request.getDescription())
-                .price(request.getPrice())
-                .stock(request.getStock())
-                // Category lookup logic would go here
-                .build();
-        return productMapper.toDto(productRepository.save(product));
+    Category category = null;
+    
+    // 1. Check if a categoryId was provided
+    if (request.getCategoryId() != null) {
+        // 2. Attempt to find it, OR THROW the exception if it's missing
+        category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found"));
     }
+
+    Product product = Product.builder()
+            .name(request.getName())
+            .description(request.getDescription())
+            .price(request.getPrice())
+            .stock(request.getStock())
+            .category(category) 
+            .build();
+            
+    return productMapper.toDto(productRepository.save(product));
+}
 
     @Transactional(readOnly = true)
     public Page<ProductDTO> getAllProducts(Pageable pageable) {
